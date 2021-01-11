@@ -1,6 +1,8 @@
 #include "MPC.h"
+
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
+
 #include "Eigen-3.3/Eigen/Core"
 
 // The program use fragments of code from
@@ -49,10 +51,11 @@ class FG_eval {
 
     // Minimize the value gap between sequential actuations.
     for (int i = 0; i < N - 2; i++) {
-      fg[0] += W_DDELTA * CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
+      fg[0] += W_DDELTA *
+               CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
       fg[0] += W_DA * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
     }
-    
+
     // Initial constraints
     fg[1 + x_start] = vars[x_start];
     fg[1 + y_start] = vars[y_start];
@@ -89,7 +92,7 @@ class FG_eval {
       }
       AD<double> psides0 = 0.0;
       for (int i = 1; i < coeffs.size(); i++) {
-        psides0 += i*coeffs[i] * CppAD::pow(x0, i-1); // f'(x0)
+        psides0 += i * coeffs[i] * CppAD::pow(x0, i - 1);  // f'(x0)
       }
       psides0 = CppAD::atan(psides0);
 
@@ -97,8 +100,10 @@ class FG_eval {
       fg[2 + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * DT);
       fg[2 + psi_start + i] = psi1 - (psi0 + v0 * delta0 / LF * DT);
       fg[2 + v_start + i] = v1 - (v0 + a0 * DT);
-      fg[2 + cte_start + i] = cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * DT));
-      fg[2 + epsi_start + i] = epsi1 - ((psi0 - psides0) + v0 * delta0 / LF * DT);
+      fg[2 + cte_start + i] =
+          cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * DT));
+      fg[2 + epsi_start + i] =
+          epsi1 - ((psi0 - psides0) + v0 * delta0 / LF * DT);
     }
   }
 };
@@ -140,6 +145,10 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_lowerbound[i] = -BOUND;
     vars_upperbound[i] = BOUND;
   }
+  for (int i = v_start; i < cte_start; i++) {
+    vars_lowerbound[i] = -BOUND;
+    vars_upperbound[i] = 50;
+  }
   // The upper and lower limits of delta are set to -25 and 25
   // degrees (values in radians).
   for (int i = delta_start; i < a_start; i++) {
@@ -151,8 +160,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars_lowerbound[i] = -MAXTHR;
     vars_upperbound[i] = MAXTHR;
   }
-  
-  
+
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
@@ -161,6 +169,9 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     constraints_lowerbound[i] = 0;
     constraints_upperbound[i] = 0;
   }
+  // for (int i = v_start; i < cte_start; i++) {
+  //   constraints_upperbound[i] = 70;
+  // }
   constraints_lowerbound[x_start] = x;
   constraints_lowerbound[y_start] = y;
   constraints_lowerbound[psi_start] = psi;
@@ -204,7 +215,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // Cost
   auto cost = solution.obj_value;
-  //std::cout << "Cost " << cost << std::endl;
+  // std::cout << "Cost " << cost << std::endl;
   this->mpc_x = {};
   this->mpc_y = {};
   for (int i = 0; i < N; i++) {
